@@ -69,6 +69,6 @@ class windowform():
                            command = cmd, repeatdelay = 1000, repeatinterval = 100)
         button.place(x = xloc, y = yloc)
 
-##motor_move = motor()
+motor_move = motor()
 window = windowform()
 window.run()
