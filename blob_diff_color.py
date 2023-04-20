@@ -25,10 +25,10 @@ def video_play():
     if ret:
         start_t = timeit.default_timer()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
         # 빨간 점 필터 마스크 (keypoints 추출에 사용)
-        frame_r = cv2.inRange(frame, (170, 50, 50), (180, 255, 255))
+        frame_r = cv2.inRange(frame, (30, 150, 50), (255, 255, 180))
         frame_r = cv2.erode(frame_r, None, iterations=0)
         frame_r = cv2.dilate(frame_r, None, iterations=0)
 
@@ -52,6 +52,8 @@ def video_play():
         keypoints = detector.detect(gray)
         keypoints_g = detector.detect(frame_g)
         keypoints_r = detector.detect(frame_r)
+        dst1 = cv2.drawKeypoints(dst1, keypoints_r, np.array([]), (0, 2500, 0),
+                                              cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         # 초록 점 찾기
         for point in keypoints_g:
@@ -68,8 +70,6 @@ def video_play():
             lazer_r_y.set("lazer_y (red) : " + str(int(lz_y_r)))
 
 
-        im_with_keypoints = cv2.drawKeypoints(frame, keypoints, np.array([]), (0, 2500, 0),
-                                                cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         # edges = cv2.Canny(gray, 100, 200)
         # corners = cv2.goodFeaturesToTrack(gray, 5, 0.04, 10)
@@ -106,7 +106,10 @@ def video_play():
         # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # 출력 화면 지정
-        img = Image.fromarray(im_with_keypoints)
+        # img = Image.fromarray(im_with_keypoints)
+        img = Image.fromarray(cv2.cvtColor(dst1, cv2.COLOR_BGR2RGB))
+
+        # img = Image.fromarray(cv2.cvtColor(dst1, cv2.COLOR_BGR2RGB))
         imgtk = ImageTk.PhotoImage(image=img)
         label2.imgtk = imgtk
         label2.configure(image=imgtk)

@@ -142,10 +142,10 @@ def video_play():
 
         # 1000x600 사이즈의 비디오 출력 화면 지정 (출력원하는 img변수 주석 풀고 사용하면 됨)
         # 1. 파랑 + 빨강 같이
-        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        # img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
         # 2. 빨강만
-        # img = Image.fromarray(video_red)
+        img = Image.fromarray(video_red)
 
         #3. 파랑만
         # img = Image.fromarray(video_blue)

@@ -26,12 +26,17 @@ def video_play():
 
         # 적/녹 색상 추출을 위해 HSVscale로 변환 : frame_hsv
         # 골대 인식을 위해 Grayscale로 변환 : frame_gray
-        frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_hsv = cv2.cvtColor(frame_hsv, cv2.COLOR_RGB2HSV)
+
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # 적색 필터 마스크
         # erode. dilate는 추출 성능을 올리기 위한 과정이니 무시해도 됨
-        frame_r = cv2.inRange(frame_hsv, (170, 50, 50), (180, 255, 255))
+        # frame_r = cv2.inRange(frame_hsv, (150, 100, 100), (180, 255, 255))
+        frame_r = cv2.inRange(frame_hsv, (-5, 255, 255), (7, 255, 255))
+
+        # frame_r = cv2.inRange(frame_hsv, (-10, 70, 50), (7, 255, 255))
         frame_r = cv2.erode(frame_r, None, iterations=0)
         frame_r = cv2.dilate(frame_r, None, iterations=0)
 
@@ -113,10 +118,10 @@ def video_play():
         # img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
         # 2. 빨강만
-        img = Image.fromarray(cv2.cvtColor(video_red, cv2.COLOR_BGR2RGB))
+        # img = Image.fromarray(cv2.cvtColor(video_red, cv2.COLOR_BGR2RGB))
 
         #3. 초록만
-        # img = Image.fromarray(cv2.cvtColor(video_green, cv2.COLOR_BGR2RGB))
+        img = Image.fromarray(cv2.cvtColor(video_green, cv2.COLOR_BGR2RGB))
 
         imgtk = ImageTk.PhotoImage(image=img)
         label2.imgtk = imgtk
@@ -167,13 +172,10 @@ lazer_x_green_label.place(x=750, y=300)
 lazer_y_green_label = tk.Label(window, textvariable=lazer_y_green, font=font)
 lazer_y_green_label.place(x=750, y=330)
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 video_play()
 
 window.mainloop()
-
-
-
 
 
 
