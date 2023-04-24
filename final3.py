@@ -6,7 +6,6 @@ import numpy as np
 import timeit
 from PIL import ImageTk, Image
 import warnings
-import pdb
 
 warnings.filterwarnings(action='ignore')
 prevTime = 0
@@ -18,22 +17,22 @@ y_loc = 90
 x_ser = ''
 y_ser = ''
 
-
-def motor_move(goal_x, goal_y, lazer_x, lazer_y):
-    diff_x = goal_x - lazer_x  # 양수면 오른쪽으로 가야함, 음수면 왼쪽으로 가야함
-    diff_y = goal_y - lazer_y  # 양수면 위로 가야함, 음수면 아래로 가야함
-    if diff_x > 0:
-        x_loc -= 1
-    else:
-        x_loc += 1
-    if diff_y > 0:
-        y_loc -= 1
-    else:
-        y_loc += 1
-
-    ser_loc = str(x_loc) + " " + str(y_loc) + "\n"
-    ser_loc = ser.encode('utf-8')
-    ser.write(ser_loc)
+#
+# def motor_move(goal_x, goal_y, lazer_x, lazer_y):
+#     diff_x = goal_x - lazer_x  # 양수면 오른쪽으로 가야함, 음수면 왼쪽으로 가야함
+#     diff_y = goal_y - lazer_y  # 양수면 위로 가야함, 음수면 아래로 가야함
+#     if diff_x > 0:
+#         x_loc -= 1
+#     else:
+#         x_loc += 1
+#     if diff_y > 0:
+#         y_loc -= 1
+#     else:
+#         y_loc += 1
+#
+#     ser_loc = str(x_loc) + " " + str(y_loc) + "\n"
+#     ser_loc = ser.encode('utf-8')
+#     ser.write(ser_loc)
 
 
 def video_play():
@@ -51,7 +50,7 @@ def video_play():
     params.minThreshold = 0
     params.maxThreshold = 255
     # params.minDistBetweenBlobs = 100
-    params.minArea = 3
+    params.minArea = 1
     params.minConvexity = 1
     params.maxArea = 255
     params.maxConvexity = 255
@@ -69,32 +68,45 @@ def video_play():
         frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        lower_r = np.array([-10, 00, 0])
-        upper_r = np.array([10, 100, 255])
+        # upper mask (170-180)
+        lower_r = np.array([-10, 70, 0])
+        upper_r = np.array([10, 85, 255])
+
+        # lower_r = np.array([-10, 70,30])
+        # upper_r = np.array([10, 255, 255])
+        # erode. dilate는 추출 성능을 올리기 위한 과정이니 무시해도 됨
+        # frame_r = cv2.inRange(frame_hsv, (-10, 80, 100), (10, 85, 255)) - 레이저는 잡히는데 좌표가 안뜸
         frame_r = cv2.inRange(frame_hsv, lower_r, upper_r)
+        frame_r = cv2.erode(frame_r, None, iterations=0)
+        frame_r = cv2.dilate(frame_r, None, iterations=0)
 
-        lower_g = np.array([30, 00, 0])
-        upper_g = np.array([80, 100, 255])
+        # 녹색 필터 마스크
+        lower_g = np.array([40, 70, 100])
+        upper_g = np.array([70, 255, 255])
         frame_g = cv2.inRange(frame_hsv, lower_g, upper_g)
+        # frame_g = cv2.erode(frame_g, None, iterations=0)
+        # frame_g = cv2.dilate(frame_g, None, iterations=0)
 
-        lower_i = np.array([0, 0, 220])
-        upper_i = np.array([180, 255, 255])
-        frame_i = cv2.inRange(frame_hsv, lower_i, upper_i)
-
-        video_green = cv2.bitwise_and(frame_g, frame_g, mask=frame_i)
-        video_red = cv2.bitwise_and(frame_r, frame_r, mask=frame_i)
+        # 위에서 만든 필터 마스크와 원본 영상(frame)을 논리합 연산
+        # 적색만 인식하여 화면에 출력하는 영상 (video_red)
+        # 녹색만 인식하여 화면에 출력하는 영상 (vidoe_green)
+        video_red = cv2.bitwise_and(frame, frame, mask=frame_r)
+        video_green = cv2.bitwise_and(frame, frame, mask=frame_g)
 
         # np.add를 통해 적,녹 비디오 합쳐서 frame 변수에 저장
         # (실제 점 인식은 이거 안 쓰고 위에서 뽑은 마스크를 통해 진행)
-        # np.add(video_red, video_green, frame)
-        # frame = cv2.erode(frame, None, iterations=0)
+        np.add(video_red, video_green, frame)
+        frame = cv2.erode(frame, None, iterations=0)
+        frame = cv2.dilate(frame, None, iterations=0)
 
         # 색깔 별 필터 마스크에서 키포인트 추출
-        keypoints_g = detector.detect(video_green)
-        keypoints_r = detector.detect(video_red)
+        keypoints_g = detector.detect(frame_g)
+        keypoints_r = detector.detect(frame_r)
 
-        im_with_keypoints = cv2.drawKeypoints(
-            frame_r, keypoints_r, video_red, (0, 2500, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # im_with_keypoints_r = cv2.drawKeypoints(
+        #     frame_r, keypoints_r, video_red, (0, 0, 2500), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # im_with_keypoints_g = cv2.drawKeypoints(
+        #     frame_g, keypoints_g, video_green, (0, 2500, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         # 적색 레이저 인식
         for point in keypoints_r:
@@ -152,7 +164,8 @@ def video_play():
 
         # 1000x600 사이즈의 비디오 출력 화면 지정 (출력원하는 img변수 주석 풀고 사용하면 됨)
         # 1. 빨 + 초 같이
-        img = Image.fromarray(video_green)
+        # img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        img = Image.fromarray(frame_hsv[:][:][2])
 
         # 2. 빨강만
         # img = Image.fromarray(cv2.cvtColor(video_red, cv2.COLOR_BGR2RGB))
@@ -160,6 +173,7 @@ def video_play():
         # 3. 초록만
         # img = Image.fromarray(cv2.cvtColor(video_green, cv2.COLOR_BGR2RGB))
 
+        # img = Image.fromarray(cv2.cvtColor(frame_hsv[:][2], cv2.COLOR_BGR2RGB))
         imgtk = ImageTk.PhotoImage(image=img)
         label2.imgtk = imgtk
         label2.configure(image=imgtk)
@@ -217,6 +231,24 @@ lazer_y_green_label.place(x=750, y=330)
 cap = cv2.VideoCapture(1)
 
 g_x, g_y, lz_x_r, lz_y_r, lz_x_g, lz_y_g = video_play()
+
+if (lz_x_r != 0 and lz_y_r != 0) and g_x == lz_x_r and g_y == lz_y_r:
+    # 빨강 레이저와 골대의 위치가 일치할 때
+    win_r = tk.StringVar(window)
+    win_r.set("공격팀 승리!")
+    win_r_label = tk.Label(window, textvariable=win_r, font=font)
+    win_r_label.place(x=750, y=400)
+    judge = True
+
+if (lz_x_r != 0 and lz_y_r != 0) and (lz_x_g != 0 and lz_y_g != 0) and lz_x_r == lz_x_g and lz_y_r == lz_y_g:
+    win_g = tk.StringVar(window)
+    win_g.set("수비팀 승리!")
+    win_g_label = tk.Label(window, textvariable=win_g, font=font)
+    win_g_label.place(x=750, y=400)
+    judge = True
+
+# if judge == False:
+    # motor_move(g_x, g_y, lz_x_r, lz_y_r, lz_x_g, lz_y_g)
 
 
 window.mainloop()
