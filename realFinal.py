@@ -23,6 +23,7 @@ y_ser = ''
 def video_play():
     global prevTime, judge
     ret, frame = cap.read()
+
     lz_x_r = 0
     lz_y_r = 0
     lz_x_g = 0
@@ -66,6 +67,20 @@ def video_play():
             ((frame[:, :, 1] > 180) * 255).astype(np.uint8)
         )
 
+        lower_r = np.array([-10, 50, 0])
+        upper_r = np.array([10, 100, 255])
+        frame_r = cv2.inRange(frame_hsv, lower_r, upper_r)
+
+        lower_g = np.array([30, 30, 0])
+        upper_g = np.array([80, 80, 255])
+        frame_g = cv2.inRange(frame_hsv, lower_g, upper_g)
+
+        # video_red = cv2.bitwise_and(frame_r, mask_red)
+        # video_green = cv2.bitwise_and(frame_g, mask_green)
+
+        video_red = cv2.bitwise_and(frame_r, mask_intensity)
+        video_green = cv2.bitwise_and(frame_g, mask_intensity)
+
         # red_sum_y = video_red.sum(0) > 1500
         # red_sum_x = video_red.sum(1) > 1500
         # red_y = np.where(red_sum_y == True)[0]
@@ -75,24 +90,11 @@ def video_play():
         #     red_y = 0
         #     red_x = 0
         # else:
-        #     red_y = int(a.mean())
-        #     red_x = int(b.mean())
-        #     cv2.circle(video_red, (red_x,red_y), 3, 255, -1)
+        #     red_y = int(red_y.mean())
+        #     red_x = int(red_x.mean())
+        #     cv2.circle(video_red, (red_x, red_y), 3, 255, -1)
 
 
-        lower_r = np.array([-10, 50, 0])
-        upper_r = np.array([10, 100, 255])
-        frame_r = cv2.inRange(frame_hsv, lower_r, upper_r)
-
-        lower_g = np.array([30, 30, 0])
-        upper_g = np.array([80, 80, 255])
-        frame_g = cv2.inRange(frame_hsv, lower_g, upper_g)
-
-        video_red = cv2.bitwise_and(frame_r, mask_red)
-        video_green = cv2.bitwise_and(frame_g, mask_green)
-
-        video_red = cv2.bitwise_and(frame_r, mask_intensity)
-        video_green = cv2.bitwise_and(frame_g, mask_intensity)
 
         # frame[:, :, 1] = video_green
         # frame[:, :, 2] = video_red
@@ -106,6 +108,7 @@ def video_play():
             lz_y_r = point.pt[1]
             lazer_x_red.set("lazer_x (red) : " + str(int(lz_x_r)))
             lazer_y_red.set("lazer_y (red) : " + str(int(lz_y_r)))
+            cv2.circle(video_red, (int(lz_x_r), int(lz_y_r)), 3, (255,0,0), -1)
 
         # 녹색 레이저 인식 (lz_x_g, lz_y_g)
         for point in keypoints_g:
@@ -113,6 +116,8 @@ def video_play():
             lz_y_g = point.pt[1]
             lazer_x_green.set("lazer_x (green) : " + str(int(lz_x_g)))
             lazer_y_green.set("lazer_y (green) : " + str(int(lz_y_g)))
+            cv2.circle(video_red, (int(lz_x_g), int(lz_y_g)), 3, (0,255,0), -1)
+
 
         # 골대 인식을 위한 코너 인식
         frame_gray_threshold = np.where(frame_gray < 120, frame_gray, 255)
@@ -156,16 +161,25 @@ def video_play():
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
 
         # 출력할 영상 지정 : 원본 영상은 frame, 테스트 원하는 영상 주석 풀고 사용하면 됨
-        img = Image.fromarray(frame)
+        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
         # img = Image.fromarray(frame_r)
         # img = Image.fromarray(frame_g)
         # img = Image.fromarray(mask_red)
         # img = Image.fromarray(mask_green)
         # img = Image.fromarray(mask_intensity)
+        # img = Image.fromarray(video_red)
+        # img = Image.fromarray(video_green)
+
 
         imgtk = ImageTk.PhotoImage(image=img)
         label2.imgtk = imgtk
         label2.configure(image=imgtk)
+
+        if np.isnan(px) == False and np.isnan(py) == False:
+            return int(px), int(py), int(lz_x_r), int(lz_y_r), int(lz_x_g), int(lz_y_g)
+        else:
+            return 0, 0, int(lz_x_r), int(lz_y_r), int(lz_x_g), int(lz_y_g)
     else:
         cap.release()
         return
@@ -217,8 +231,9 @@ win_label = tk.Label(window, textvariable=win, font=font)
 win_label.place(x=750, y=400)
 
 # 캠 포트 설정 : 이상한 카메라가 뜬다면 0,1 등 바꿔보세요
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
-video_play()
+# video_play()
+g_x, g_y, lz_x_r, lz_y_r, lz_x_g, lz_y_g = video_play()
 
 window.mainloop()

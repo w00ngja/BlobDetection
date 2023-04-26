@@ -38,7 +38,7 @@ def motor_move(goal_x, goal_y, lazer_x, lazer_y):
 
 
 def video_play():
-    global prevTime
+    global prevTime, judge
     ret, frame = cap.read()
     lz_x_r = 0
     lz_y_r = 0
@@ -52,9 +52,7 @@ def video_play():
     params.minThreshold = 0
     params.maxThreshold = 255
     # params.minDistBetweenBlobs = 100
-    # params.minArea = 2
-    params.minArea = 3.14159 * 3.0 * 3.0
-
+    params.minArea = 2
     params.minConvexity = 1
     params.maxArea = 255
     params.maxConvexity = 255
@@ -72,6 +70,7 @@ def video_play():
         frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         h, s, i = cv2.split(frame_hsv)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # a = np.where(frame_hsv[:, :, 2] < 150)[0]
 
         # 위에서 만든 필터 마스크와 원본 영상(frame)을 논리합 연산
         # 적색만 인식하여 화면에 출력하는 영상 (video_red)
@@ -79,23 +78,50 @@ def video_play():
 
         # pdb.set_trace()
         video_red = (
-            ((frame[:, :, 2] > 190)*255).astype(np.uint8)
+            ((frame[:, :, 2] > 150)*255).astype(np.uint8)
         )
+
+        # sss = video_red.sum(0) > 1500
+        # sss2 = video_red.sum(1) > 1500
+        # a = np.where(sss == True)[0]
+        # b = np.where(sss2 == True)[0]
+        # if np.any(np.isnan(a)) == True or np.any(np.isnan(b)) == True or a.size == 0 or b.size == 0:
+        #     video_red2 = video_red
+        # else:
+        #     a = int(a.mean())
+        #     b = int(b.mean())
+        #     video_red2 = np.zeros((1080, 1920))
+        #     video_red2[b-10:b+10, a-10:a+10] = 255
+        #     video_red2 = video_red2.astype(np.uint8)
+
+        # pdb.set_trace()
 
         video_green = (
             ((frame[:, :, 1] > 180)*255).astype(np.uint8)
         )
 
+        # ssss = video_green.sum(0) > 3000
+        # ssss2 = video_green.sum(1) > 3000
+        # aa = np.where(ssss == True)[0]
+        # bb = np.where(ssss2 == True)[0]
+        # if np.any(np.isnan(aa)) == True or np.any(np.isnan(bb)) == True or aa.size == 0 or bb.size == 0:
+        #     video_green2 = video_green
+        # else:
+        #     aa = int(aa.mean())
+        #     bb = int(bb.mean())
+        #     video_green2 = np.zeros((480, 640))
+        #     video_green2[bb-20:bb+20, aa-20:aa+20] = 255
+        #     video_green2 = video_green2.astype(np.uint8)
+
         lower_r = np.array([-10, 50, 0])
         upper_r = np.array([10, 100, 255])
         # erode. dilate는 추출 성능을 올리기 위한 과정이니 무시해도 됨
-        # frame_r = cv2.inRange(frame_hsv, (-10, 80, 100), (10, 85, 255)) - 레이저는 잡히는데 좌표가 안뜸
         frame_r = cv2.inRange(frame_hsv, lower_r, upper_r)
         # frame_r = cv2.erode(frame_r, None, iterations=0)
         # frame_r = cv2.dilate(frame_r, None, iterations=0)
 
         # 녹색 필터 마스크
-        # upper_g = np.array([70, 255, 255])s
+        # upper_g = np.array([70, 255, 255])
         # lower_g = np.array([40, 70, 100])
         lower_g = np.array([30, 30, 0])
         upper_g = np.array([80, 80, 255])
@@ -113,15 +139,16 @@ def video_play():
 
         # pdb.set_trace()
         # np.add를 통해 적,녹 비디오 합쳐서 frame 변수에 저장
+
         # (실제 점 인식은 이거 안 쓰고 위에서 뽑은 마스크를 통해 진행)
         # np.add(video_red, video_green, frame)
         # frame = cv2.erode(frame, None, iterations=0)
         # frame = cv2.dilate(frame, None, iterations=0)
-        keypoints_g = detector.detect(frame_g)
-        keypoints_r = detector.detect(frame_r)
+        keypoints_g = detector.detect(video_green)
+        keypoints_r = detector.detect(video_red)
 
-        im_with_keypoints = cv2.drawKeypoints(
-            frame_r, keypoints_r, video_red, (0, 2500, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # im_with_keypoints = cv2.drawKeypoints(
+        #     frame_r, keypoints_r, video_red, (0, 2500, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         # 적색 레이저 인식
         for point in keypoints_r:
@@ -138,25 +165,29 @@ def video_play():
             lazer_y_green.set("lazer_y (green) : " + str(int(lz_y_g)))
 
         # 골대 인식
-        corners = cv2.goodFeaturesToTrack(frame_gray, 5, 0.04, 10)
+        sss = np.where(frame_gray < 120, frame_gray, 255)
+        corners = cv2.goodFeaturesToTrack(sss, 3, 0.5, 10)
 
         # 골대가 비디오 내부에 잡힐 경우 좌표 (px_b,py_b)을 출력
         if corners is not None:
             corners = np.int0(corners).reshape(
                 corners.shape[0], corners.shape[2])
 
-            xy_b_12 = corners[corners[:, 0].argsort(kind='mergesort')]
-            xy_b_34 = corners[corners[:, 1].argsort(kind='mergesort')]
-            x1_b, y1_b = xy_b_12[0]
-            x2_b, y2_b = xy_b_12[-1]
-            x3_b, y3_b = xy_b_34[0]
-            x4_b, y4_b = xy_b_34[-1]
+            # xy_b_12 = corners[corners[:, 0].argsort(kind='mergesort')]
+            # xy_b_34 = corners[corners[:, 1].argsort(kind='mergesort')]
+            # x1_b, y1_b = xy_b_12[0]
+            # x2_b, y2_b = xy_b_12[-1]
+            # x3_b, y3_b = xy_b_34[0]
+            # x4_b, y4_b = xy_b_34[-1]
 
-            px_b = ((x1_b * y2_b - y1_b * x2_b) * (x3_b - x4_b) - (x1_b - x2_b) * (x3_b * y4_b - y3_b * x4_b)) / \
-                ((x1_b - x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b - x4_b))
+            # px_b = ((x1_b * y2_b - y1_b * x2_b) * (x3_b - x4_b) - (x1_b - x2_b) * (x3_b * y4_b - y3_b * x4_b)) / \
+            #     ((x1_b - x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b - x4_b))
 
-            py_b = ((x1_b * y2_b - y1_b * x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b * y4_b - y3_b * x4_b)) / \
-                ((x1_b - x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b - x4_b))
+            # py_b = ((x1_b * y2_b - y1_b * x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b * y4_b - y3_b * x4_b)) / \
+            #     ((x1_b - x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b - x4_b))
+
+            px_b = corners[:, 0].sum() / len(corners)
+            py_b = corners[:, 1].sum() / len(corners)
 
             if np.isnan(px_b) == False and np.isnan(py_b) == False:
                 cv2.circle(frame, (int(px_b), int(py_b)), 10, (0, 0, 255), 3)
@@ -179,23 +210,16 @@ def video_play():
 
         # 1000x600 사이즈의 비디오 출력 화면 지정 (출력원하는 img변수 주석 풀고 사용하면 됨)
         # 1. 빨 + 초 같이
-        img = Image.fromarray(frame)
-
-        # 2. 빨강만
-        # img = Image.fromarray(cv2.cvtColor(video_red, cv2.COLOR_BGR2RGB))
-
-        # 3. 초록만
-        # img = Image.fromarray(cv2.cvtColor(video_green, cv2.COLOR_BGR2RGB))
-
+        img = Image.fromarray(video_red)
         imgtk = ImageTk.PhotoImage(image=img)
         label2.imgtk = imgtk
         label2.configure(image=imgtk)
-        label2.after(10, video_play)
+        if judge == False:
+            label2.after(10, video_play)
 
-        if np.isnan(px_b) == False and np.isnan(py_b) == False:
-            return int(px_b), int(py_b), int(lz_x_r), int(lz_y_r), int(lz_x_g), int(lz_y_g)
-        else:
-            return 0, 0, int(lz_x_r), int(lz_y_r), int(lz_x_g), int(lz_y_g)
+        #     return int(px_b), int(py_b), int(lz_x_r), int(lz_y_r), int(lz_x_g), int(lz_y_g)
+        # else:
+        #     return 0, 0, int(lz_x_r), int(lz_y_r), int(lz_x_g), int(lz_y_g)
     else:
         cap.release()
         return
@@ -241,23 +265,13 @@ lazer_x_green_label.place(x=750, y=300)
 lazer_y_green_label = tk.Label(window, textvariable=lazer_y_green, font=font)
 lazer_y_green_label.place(x=750, y=330)
 
+win = tk.StringVar(window)
+win.set("")
+win_label = tk.Label(window, textvariable=win, font=font)
+win_label.place(x=750, y=400)
 cap = cv2.VideoCapture(1)
 
-g_x, g_y, lz_x_r, lz_y_r, lz_x_g, lz_y_g = video_play()
-
-# if g_x >= lz_x_r - 30 and g_x <= lz_x_r + 30:
-#     win_r.set("공격팀 승리!")
-#     win_r_label = tk.Label(window, textvariable=win_r, font=font)
-#     win_r_label.place(x=750, y=400)
-#     judge = True
-
-# if (lz_x_r != 0 and lz_y_r != 0) and g_x == lz_x_r and g_y == lz_y_r:
-#     # 빨강 레이저와 골대의 위치가 일치할 때
-#     win_r = tk.StringVar(window)
-#     win_r.set("공격팀 승리!")
-#     win_r_label = tk.Label(window, textvariable=win_r, font=font)
-#     win_r_label.place(x=750, y=400)
-#     judge = True
+video_play()
 
 # if (lz_x_r != 0 and lz_y_r != 0) and (lz_x_g != 0 and lz_y_g != 0) and lz_x_r == lz_x_g and lz_y_r == lz_y_g:
 #     win_g = tk.StringVar(window)
