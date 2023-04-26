@@ -19,23 +19,6 @@ x_ser = ''
 y_ser = ''
 
 
-def motor_move(goal_x, goal_y, lazer_x, lazer_y):
-    diff_x = goal_x - lazer_x  # 양수면 오른쪽으로 가야함, 음수면 왼쪽으로 가야함
-    diff_y = goal_y - lazer_y  # 양수면 위로 가야함, 음수면 아래로 가야함
-    if diff_x > 0:
-        x_loc -= 1
-    else:
-        x_loc += 1
-    if diff_y > 0:
-        y_loc -= 1
-    else:
-        y_loc += 1
-
-    ser_loc = str(x_loc) + " " + str(y_loc) + "\n"
-    ser_loc = ser.encode('utf-8')
-    ser.write(ser_loc)
-
-
 def video_play():
     global prevTime
     ret, frame = cap.read()
@@ -47,30 +30,28 @@ def video_play():
     py_b = 0
     # 점 인식 함수 초기값 지정
     params = cv2.SimpleBlobDetector_Params()
-    params.blobColor = 0
+    params.blobColor = 255
     params.minThreshold = 0
     params.maxThreshold = 255
     # params.minDistBetweenBlobs = 100
+    params.filterByArea = True
     params.minArea = 3
-    params.minConvexity = 1
+    # params.minConvexity = 1
     params.maxArea = 255
-    params.maxConvexity = 255
-    params.minInertiaRatio = 1
-    params.maxInertiaRatio = 255
-    params.minCircularity = 1
-    params.maxCircularity = 255
+    # params.maxConvexity = 255
+    # params.minInertiaRatio = 1
+    # params.maxInertiaRatio = 255
+    # params.minCircularity = 1
+    # params.maxCircularity = 255
     detector = cv2.SimpleBlobDetector_create(params)
 
     if ret:
         start_t = timeit.default_timer()
-
-        # 적/녹 색상 추출을 위해 HSVscale로 변환 : frame_hsv
-        # 골대 인식을 위해 Grayscale로 변환 : frame_gray
         frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        lower_r = np.array([-10, 00, 0])
-        upper_r = np.array([10, 100, 255])
+        lower_r = np.array([-15, 00, 0])
+        upper_r = np.array([15, 255, 255])
         frame_r = cv2.inRange(frame_hsv, lower_r, upper_r)
 
         lower_g = np.array([30, 00, 0])
@@ -81,20 +62,13 @@ def video_play():
         upper_i = np.array([180, 255, 255])
         frame_i = cv2.inRange(frame_hsv, lower_i, upper_i)
 
-        video_green = cv2.bitwise_and(frame_g, frame_g, mask=frame_i)
-        video_red = cv2.bitwise_and(frame_r, frame_r, mask=frame_i)
-
-        # np.add를 통해 적,녹 비디오 합쳐서 frame 변수에 저장
-        # (실제 점 인식은 이거 안 쓰고 위에서 뽑은 마스크를 통해 진행)
-        # np.add(video_red, video_green, frame)
-        # frame = cv2.erode(frame, None, iterations=0)
+        video_green = cv2.bitwise_and(frame_g, frame_i)
+        video_red = cv2.bitwise_and(frame_r, frame_i)
 
         # 색깔 별 필터 마스크에서 키포인트 추출
         keypoints_g = detector.detect(video_green)
         keypoints_r = detector.detect(video_red)
-
-        im_with_keypoints = cv2.drawKeypoints(
-            frame_r, keypoints_r, video_red, (0, 2500, 0), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        keypoints_i = detector.detect(frame_i)
 
         # 적색 레이저 인식
         for point in keypoints_r:
@@ -102,6 +76,8 @@ def video_play():
             lz_y_r = point.pt[1]
             lazer_x_red.set("lazer_x (red) : " + str(int(lz_x_r)))
             lazer_y_red.set("lazer_y (red) : " + str(int(lz_y_r)))
+            cv2.circle(video_red, (int(lz_x_r), int(lz_y_r)), 10, (0, 0, 255), 3)
+
 
         # 녹색 레이저 인식
         for point in keypoints_g:
@@ -109,6 +85,7 @@ def video_play():
             lz_y_g = point.pt[1]
             lazer_x_green.set("lazer_x (green) : " + str(int(lz_x_g)))
             lazer_y_green.set("lazer_y (green) : " + str(int(lz_y_g)))
+            cv2.circle(frame_i, (int(lz_x_g), int(lz_y_g)), 10, (0, 0, 255), 3)
 
         # 골대 인식
         corners = cv2.goodFeaturesToTrack(frame_gray, 5, 0.04, 10)
@@ -152,7 +129,7 @@ def video_play():
 
         # 1000x600 사이즈의 비디오 출력 화면 지정 (출력원하는 img변수 주석 풀고 사용하면 됨)
         # 1. 빨 + 초 같이
-        img = Image.fromarray(video_green)
+        img = Image.fromarray(video_red)
 
         # 2. 빨강만
         # img = Image.fromarray(cv2.cvtColor(video_red, cv2.COLOR_BGR2RGB))
