@@ -13,24 +13,27 @@ warnings.filterwarnings(action='ignore')
 prevTime = 0
 
 def video_play():
-    global prevTime, judge
+    global prevTime
     ret, frame = cap.read()
+
+    # 초기값 설정
     lz_x_r = 0
     lz_y_r = 0
     lz_x_g = 0
     lz_y_g = 0
     px_b = 0
     py_b = 0
-    # 점 인식 함수 초기값 지정
     params = cv2.SimpleBlobDetector_Params()
     detector = cv2.SimpleBlobDetector_create(params)
 
     if ret:
         start_t = time.perf_counter()
 
+        # 원본영상(frame)에서 레이저 인식을 위한 HSV변환(frame_hsv)과 Grayscale변환(frame_gray)
         frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+        # HSV영역에서 색상 범위를 지정하여 적, 녹 필터링 마스크 생성 (H : 채도, S : 농도 , V : 밝기)
         lower_r = np.array([165, 50, 80])
         upper_r = np.array([180, 255, 255])
         frame_r = cv2.inRange(frame_hsv, lower_r, upper_r)
@@ -39,14 +42,15 @@ def video_play():
         upper_g = np.array([80, 255, 255])
         frame_g = cv2.inRange(frame_hsv, lower_g, upper_g)
 
+        # 각 마스크를 원본 영상에 씌움 -> 적색 레이저만 출력하는 video_red, 녹색 레이저만 출력하는 vidoe_green 생성
         video_red = cv2.bitwise_and(frame,frame,mask=frame_r)
         video_green = cv2.bitwise_and(frame,frame,mask=frame_g)
 
-        # 블롭 안잡히면 파라미터 문제일 수도 있음
+        # 레이저 인식을 위한 키포인트 추출
         keypoints_r = detector.detect(video_red)
         keypoints_g = detector.detect(video_green)
 
-        # 적색 레이저 인식
+        # 적색 레이저 인식 및 화면에 출력 (lz_x_r, lz_y_r)
         for point in keypoints_r:
             lz_x_r = point.pt[0]
             lz_y_r = point.pt[1]
@@ -54,7 +58,7 @@ def video_play():
             lazer_y_red.set("lazer_y (red) : " + str(int(lz_y_r)))
             cv2.circle(frame, (int(lz_x_r), int(lz_y_r)), 10, (0, 0, 255), 2)
 
-        # 녹색 레이저 인식
+        # 녹색 레이저 인식 및 화면에 출력 (lz_x_g, lz_y_g)
         for point in keypoints_g:
             lz_x_g = point.pt[0]
             lz_y_g = point.pt[1]
@@ -62,11 +66,11 @@ def video_play():
             lazer_y_green.set("lazer_y (green) : " + str(int(lz_y_g)))
             cv2.circle(frame, (int(lz_x_g), int(lz_y_g)), 10, (0, 255, 0), 2)
 
-        # 골대 인식
-        frame_gray_tsh = np.where(frame_gray < 120, frame_gray, 255)
-        corners = cv2.goodFeaturesToTrack(frame_gray_tsh, 3, 0.5, 10)
+        # 골대 인식 및 화면에 출력 (px_b, py_b)
+        # 잘 잡히지 않을 시 goodFeaturesToTrack 파라미터 바꿔볼 것
+        frame_gray_tsh = np.where(frame_gray < 180, frame_gray, 255)
+        corners = cv2.goodFeaturesToTrack(frame_gray, 12, 0.04,10, corners=None, mask=None, blockSize=None, useHarrisDetector=True, k=0.04)
 
-        # 골대가 비디오 내부에 잡힐 경우 좌표 (px_b,py_b)을 출력
         if corners is not None:
             corners = np.int0(corners).reshape(
                 corners.shape[0], corners.shape[2])
@@ -84,17 +88,16 @@ def video_play():
             py_b = ((x1_b * y2_b - y1_b * x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b * y4_b - y3_b * x4_b)) / \
                 ((x1_b - x2_b) * (y3_b - y4_b) - (y1_b - y2_b) * (x3_b - x4_b))
 
-            # px_b = corners[:, 0].sum() / len(corners)
-            # py_b = corners[:, 1].sum() / len(corners)
-
+            # 찾은 코너로 골대 좌표 찾기
             if np.isnan(px_b) == False and np.isnan(py_b) == False:
-                # cv2.circle(frame, (int(px_b), int(py_b)), 10, (255, 0, 0), 3)
+                cv2.circle(frame, (int(px_b), int(py_b)), 20, (255, 0, 0), 3)
                 goal_x.set("goal_x : " + str(int(px_b)))
                 goal_y.set("goal_y : " + str(int(py_b)))
 
+            # 코너 찾기
             for i in corners:
                 x_b, y_b = i.ravel()
-                # cv2.circle(frame, (x_b, y_b), 3, 255, -1)
+                cv2.circle(frame, (x_b, y_b), 3, (255, 0, 0), -1)
         else:
             # 골대가 영상에 잡히지 않을 때 좌표 (0,0) 지정
             goal_x.set("goal_x : 0")
@@ -106,11 +109,13 @@ def video_play():
         cv2.putText(frame, "FPS : " + str(fps), (0, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
 
+        # 출력 영상 선택
+        # 테스트 시 출력 원하는 영상을 주석 풀고 사용하면 됨
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        # img = Image.fromarray(frame_r)
+        # img = Image.fromarray(frame_g)
         # img = Image.fromarray(video_red)
         # img = Image.fromarray(video_green)
-        # img = Image.fromarray(video_red)
-        # img = Image.fromarray(video_red)
 
         imgtk = ImageTk.PhotoImage(image=img)
         label2.imgtk = imgtk
@@ -167,7 +172,9 @@ win.set("")
 win_label = tk.Label(window, textvariable=win, font=font)
 win_label.place(x=750, y=400)
 
-cap = cv2.VideoCapture(1)
+# 캠 선택 : 거의 기본 캠(0)인데, 안나오면 1로 바꿔볼 것
+cap = cv2.VideoCapture(0)
 
+# 함수 실행 및 무한 루프
 video_play()
 window.mainloop()
