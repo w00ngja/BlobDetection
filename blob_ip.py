@@ -173,7 +173,7 @@ win_label = tk.Label(window, textvariable=win, font=font)
 win_label.place(x=750, y=400)
 
 # 캠 선택 : 거의 기본 캠(0)인데, 안나오면 1로 바꿔볼 것
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # 함수 실행 및 무한 루프
 video_play()
