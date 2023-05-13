@@ -95,7 +95,7 @@ def video_play():
         # 골대 인식 및 화면에 출력 (px_b, py_b)
         # 잘 잡히지 않을 시 goodFeaturesToTrack 파라미터 바꿔볼 것
         corners = cv2.goodFeaturesToTrack(
-            frame_gray, 12, 0.04, 10, corners=None, mask=None, blockSize=None, useHarrisDetector=True, k=0.04)
+            frame_gray, 5, 0.04, 10, corners=None, mask=None, blockSize=None, useHarrisDetector=True, k=0.04)
 
         # 골대가 비디오 내부에 잡힐 경우 좌표 (px_b,py_b)을 출력
         if corners is not None:
