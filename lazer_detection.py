@@ -4,16 +4,20 @@ import serial
 import cv2
 import numpy as np
 import time
+from time import localtime
 from PIL import ImageTk, Image
 import warnings
 
 warnings.filterwarnings(action='ignore')
 prevTime = 0
+prevTime2 = 0
+
 judge = False
 
+isTimer = 0
 
 def video_play():
-    global prevTime, judge
+    global prevTime,prevTime2, judge, isTimer
     ret, frame = cap.read()
 
     lz_x_r = 0
@@ -121,11 +125,20 @@ def video_play():
 
         # 비디오 FPS 출력
         curTime = time.time()
+
         sec = curTime - prevTime
+        mi = time.perf_counter()
+        # time.sleep(1)
+        if (isTimer):
+            print(int(time.process_time()-isTimer))
+
         prevTime = curTime
         fps = int(1/(sec))
         cv2.putText(frame, "FPS : " + str(fps), (0, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
+
+        # print(isTimer)
+
 
         # 이미지 출력
         img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -138,6 +151,9 @@ def video_play():
         cap.release()
         return
 
+def timer():
+    global isTimer
+    isTimer = time.process_time()
 
 # tkinter UI 설정부분
 window = tk.Tk()
@@ -184,6 +200,9 @@ win.set("")
 win_label = tk.Label(window, textvariable=win, font=font)
 win_label.place(x=750, y=400)
 
+button = tkinter.Button(window, overrelief="solid", width=15, command=timer, repeatdelay=1000, repeatinterval=100)
+button.pack()
+button.place(x=750, y=450)
 # 캠 선택 : 거의 기본 캠(0)인데, 안나오면 1로 바꿔볼 것
 cap = cv2.VideoCapture(0)
 
